@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platelet Alignment Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a202c;
+            color: #a0aec0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        canvas {
+            background-color: #2d3748;
+            border: 4px solid #4a5568;
+            border-radius: 0.5rem;
+            display: block;
+            max-width: 100%;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            cursor: crosshair; /* For setting shear direction */
+        }
+        .sim-button {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #4299e1; /* Blue */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            margin: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            min-width: 180px;
+            text-align: center;
+        }
+        .sim-button.active { /* Style for active toggle buttons */
+             background-color: #dd6b20; /* Orange */
+        }
+        .sim-button.active:hover {
+             background-color: #c05621; /* Darker Orange */
+        }
+        .sim-button:hover {
+            background-color: #3182ce; /* Darker blue */
+        }
+        .sim-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .sim-button:disabled {
+            background-color: #a0aec0;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        #density-control, #info-display { /* Group info displays */
+             margin-top: 1rem;
+             display: flex;
+             align-items: center;
+             gap: 1rem; /* Increased gap */
+             flex-wrap: wrap;
+             justify-content: center;
+             font-size: 0.8rem; /* Smaller font for info */
+             min-height: 2em; /* Ensure space even if empty */
+        }
+        #densitySlider {
+             cursor: pointer;
+             width: 150px; /* Slightly smaller slider */
+         }
+         #densitySlider:disabled {
+             cursor: not-allowed;
+             opacity: 0.5;
+         }
+         /* Style for shear direction info */
+         #shear-info {
+             color: #63b3ed; /* Light blue */
+         }
+         /* Style for reference */
+         #reference {
+            margin-top: 2rem;
+            font-size: 0.6rem; /* Smaller font for reference */
+            color: #718096; /* Dimmer color */
+            text-align: center;
+            max-width: 600px;
+            line-height: 1.4;
+         }
+         #reference em {
+            font-style: italic;
+            color: #a0aec0; /* Slightly brighter for title */
+         }
+         @media (max-width: 640px) {
+            .sim-button { padding: 0.5rem 1rem; font-size: 0.75rem; min-width: 140px;}
+            #density-control, #info-display { font-size: 0.7rem; gap: 0.5rem;}
+            h1 { font-size: 1.25rem; }
+            #densitySlider { width: 120px; }
+            #reference { font-size: 0.5rem; }
+         }
+
+    </style>
+</head>
+<body>
+    <h1 class="text-2xl font-bold mb-2 text-center text-blue-300">Platelet Alignment Simulation</h1>
+    <p class="mb-2 text-center text-sm">Set Density, Click & Drag on the Canvas Below for Shear Direction, Start, then Toggle Shear & RMF.</p>
+
+    <div style="position: relative; max-width: 600px; width: 100%;">
+        <canvas id="simCanvas" width="600" height="400"></canvas>
+    </div>
+
+    <div id="info-display">
+        <div id="density-control">
+            <label for="densitySlider">Density:</label>
+            <input type="range" id="densitySlider" name="density" min="10" max="80" value="30" step="5">
+            <span id="densityValue">30</span>
+        </div>
+         <div id="shear-info">
+            Shear Dir: <span id="shearAngle">90</span>&deg;
+        </div>
+    </div>
+
+    <div id="controls" class="mt-4 flex flex-wrap justify-center items-center gap-2">
+        <button id="startBtn" class="sim-button bg-green-500 hover:bg-green-600">Start</button>
+        <button id="shearBtn" class="sim-button">Apply Shear</button>
+        <button id="rmfBtn" class="sim-button">Apply RMF</button>
+        <button id="stopBtn" class="sim-button bg-red-500 hover:bg-red-600">Stop</button>
+    </div>
+
+    <div id="reference">
+        <p>Simulation based on concepts from:</p>
+        <p><em>Sequential Dual Alignments Introduce Synergistic Effect on Hexagonal Boron Nitride Platelets for Superior Thermal Performance</em></p>
+        <p>Y. Chen, Z. Gao, S. A. Hoo, V. Tipnis, R. Wang, I. Mitevski, D. Hitchcock, K. L. Simmons, Y. Sun, M. Sarntinoranont, Y. Huang* (University of Florida, et al.)</p>
+    </div>
+
+    <script>
+        // --- Sim Constants ---
+        const CANVAS_WIDTH = 600;
+        const CANVAS_HEIGHT = 400;
+        const PLATELET_WIDTH = 30;
+        const MIN_ELLIPSE_HEIGHT = 1;
+        let currentShearTargetRad = degToRad(90);
+        const PLANAR_AXIS_TARGET_RAD_1 = 0;
+        const PLANAR_AXIS_TARGET_RAD_2 = Math.PI;
+        const EDGE_ON_FACE_TARGET_RAD = Math.PI / 2;
+        const ALIGNMENT_SPEED_BASE = 0.02;
+        const ALIGNMENT_SPEED_SYNERGY_BOOST = 3;
+        const TWO_PI = Math.PI * 2;
+        const MAX_OFFSET_DEG = 5; // +/- 5 degrees
+        const MAX_OFFSET_RAD = degToRad(MAX_OFFSET_DEG);
+
+        // --- Sim Variables ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const shearBtn = document.getElementById('shearBtn');
+        const rmfBtn = document.getElementById('rmfBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const densitySlider = document.getElementById('densitySlider');
+        const densityValueDisplay = document.getElementById('densityValue');
+        const shearAngleDisplay = document.getElementById('shearAngle');
+
+        let platelets = [];
+        let currentNumPlatelets = parseInt(densitySlider.value);
+        let animationFrameId = null;
+        let isShearActive = false;
+        let isRmfActive = false;
+        let wasShearApplied = false;
+        let isSimRunning = false;
+
+        let isDragging = false;
+        let dragStartX = 0, dragStartY = 0, dragCurrentX = 0, dragCurrentY = 0;
+
+        // --- Utility Functions ---
+        function degToRad(degrees) { return degrees * (Math.PI / 180); }
+        function radToDeg(radians) { return (radians * (180 / Math.PI) + 360) % 360; }
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+        }
+        function shortestAngleDist(a0, a1) {
+            const da = (a1 - a0) % TWO_PI;
+            return 2 * da % TWO_PI - da;
+        }
+        function moveAngleTowards(current, target, step) {
+            const diff = shortestAngleDist(current, target);
+            if (Math.abs(diff) < 0.001 || Math.abs(step) < 0.0001) { return target; }
+            if (Math.abs(diff) < Math.abs(step)) { return target; }
+            let nextAngle = current + Math.sign(diff) * Math.abs(step);
+            return (nextAngle % TWO_PI + TWO_PI) % TWO_PI;
+        }
+
+
+        // --- Platelet Class ---
+        class Platelet {
+             constructor(x, y) {
+                 this.x = x; this.y = y;
+                 this.angleRad = Math.random() * TWO_PI; // Random axis angle
+                 this.faceAngleRad = Math.random() * Math.PI / 2; // Random face angle (0 to PI/2)
+                 this.axisTargetOffsetRad = (Math.random() * 2 - 1) * MAX_OFFSET_RAD;
+                 this.faceTargetOffsetRad = (Math.random() * 2 - 1) * MAX_OFFSET_RAD;
+             }
+
+             update() {
+                 if (!isSimRunning) return;
+
+                 let currentAxisSpeed = ALIGNMENT_SPEED_BASE;
+                 let currentFaceSpeed = ALIGNMENT_SPEED_BASE;
+                 let axisTarget = this.angleRad;
+                 let faceTarget = this.faceAngleRad;
+
+                 const synergyBoost = wasShearApplied ? ALIGNMENT_SPEED_SYNERGY_BOOST : 1;
+
+                 if (isShearActive) {
+                     axisTarget = currentShearTargetRad;
+                     currentAxisSpeed = ALIGNMENT_SPEED_BASE;
+                     faceTarget = this.faceAngleRad;
+                     currentFaceSpeed = 0;
+                 } else if (isRmfActive) {
+                     const axisDist1 = Math.abs(shortestAngleDist(this.angleRad, PLANAR_AXIS_TARGET_RAD_1));
+                     const axisDist2 = Math.abs(shortestAngleDist(this.angleRad, PLANAR_AXIS_TARGET_RAD_2));
+                     const idealAxisTarget = (axisDist1 < axisDist2) ? PLANAR_AXIS_TARGET_RAD_1 : PLANAR_AXIS_TARGET_RAD_2;
+                     axisTarget = (idealAxisTarget + this.axisTargetOffsetRad + TWO_PI) % TWO_PI;
+
+                     const idealFaceTarget = EDGE_ON_FACE_TARGET_RAD;
+                     faceTarget = idealFaceTarget + this.faceTargetOffsetRad;
+                     faceTarget = Math.max(0, Math.min(Math.PI / 2, faceTarget));
+
+                     currentAxisSpeed = ALIGNMENT_SPEED_BASE * synergyBoost;
+                     currentFaceSpeed = ALIGNMENT_SPEED_BASE * synergyBoost;
+                 }
+
+                 this.angleRad = moveAngleTowards(this.angleRad, axisTarget, currentAxisSpeed);
+                 this.faceAngleRad = moveAngleTowards(this.faceAngleRad, faceTarget, currentFaceSpeed);
+                 this.faceAngleRad = Math.max(0, Math.min(Math.PI / 2, this.faceAngleRad));
+             }
+
+
+             draw(context) {
+                 context.save();
+                 context.translate(this.x, this.y);
+                 context.rotate(this.angleRad);
+
+                 const faceFactor = Math.cos(this.faceAngleRad);
+                 const heightRadius = MIN_ELLIPSE_HEIGHT + (PLATELET_WIDTH / 2 - MIN_ELLIPSE_HEIGHT) * faceFactor;
+                 const widthRadius = PLATELET_WIDTH / 2;
+
+                 context.fillStyle = '#e2e8f0';
+                 context.strokeStyle = '#4a5568';
+                 context.lineWidth = 1;
+                 context.beginPath();
+                 context.ellipse(0, 0, widthRadius, Math.max(MIN_ELLIPSE_HEIGHT, heightRadius), 0, 0, TWO_PI);
+                 context.fill();
+                 context.stroke();
+
+                 if (faceFactor > 0.05) {
+                     context.beginPath();
+                     context.moveTo(-widthRadius * 0.9, 0);
+                     context.lineTo(widthRadius * 0.9, 0);
+                     const lineLightness = 50 + 50 * faceFactor;
+                     context.strokeStyle = `hsl(0, 0%, ${lineLightness}%)`;
+                     context.globalAlpha = faceFactor * 0.8 + 0.2;
+                     context.lineWidth = 1.5;
+                     context.stroke();
+                     context.globalAlpha = 1.0;
+                 }
+                 context.restore();
+             }
+        }
+
+        // --- Sim Logic Functions ---
+        function initPlatelets() {
+            platelets = [];
+            const padding = Math.max(PLATELET_WIDTH, MIN_ELLIPSE_HEIGHT * 2);
+            for (let i = 0; i < currentNumPlatelets; i++) {
+                let validPosition = false; let x, y; let attempts = 0;
+                while (!validPosition && attempts < 200) {
+                    x = padding + Math.random() * (canvas.width - padding * 2);
+                    y = padding + Math.random() * (canvas.height - padding * 2);
+                    validPosition = true;
+                    for (const p of platelets) {
+                        const dist = Math.sqrt((x - p.x)**2 + (y - p.y)**2);
+                        if (dist < PLATELET_WIDTH * 1.1) { validPosition = false; break; }
+                    }
+                    attempts++;
+                }
+                if (attempts >= 200) console.warn("Could not place all platelets without potential overlap");
+                platelets.push(new Platelet(x, y));
+            }
+            console.log(`Initialized ${platelets.length} platelets.`);
+        }
+
+        function update() {
+            if (!isSimRunning) return;
+            platelets.forEach(p => p.update());
+        }
+
+        function drawShearIndicator(context) {
+             if (isDragging) {
+                 context.save();
+                 context.beginPath(); context.moveTo(dragStartX, dragStartY); context.lineTo(dragCurrentX, dragCurrentY);
+                 context.strokeStyle = '#63b3ed'; context.lineWidth = 2; context.setLineDash([5, 5]); context.stroke(); context.setLineDash([]);
+                 const angle = Math.atan2(dragCurrentY - dragStartY, dragCurrentX - dragStartX);
+                 const arrowSize = 10;
+                 context.translate(dragCurrentX, dragCurrentY); context.rotate(angle);
+                 context.beginPath(); context.moveTo(0, 0); context.lineTo(-arrowSize, -arrowSize / 2); context.lineTo(-arrowSize, arrowSize / 2); context.closePath();
+                 context.fillStyle = '#63b3ed'; context.fill();
+                 context.restore();
+             } else { // Static indicator showing current target
+                 const indicatorLength = 20;
+                 const centerX = 40; const centerY = 30;
+                 context.save();
+                 context.translate(centerX, centerY);
+                 context.rotate(currentShearTargetRad);
+                 context.beginPath(); context.moveTo(-indicatorLength / 2, 0); context.lineTo(indicatorLength / 2, 0);
+                 context.strokeStyle = '#63b3ed'; context.lineWidth = 3; context.stroke();
+                 context.beginPath(); context.moveTo(indicatorLength/2, 0); context.lineTo(indicatorLength/2 - 5, -3); context.lineTo(indicatorLength/2 - 5, 3); context.closePath();
+                 context.fillStyle = '#63b3ed'; context.fill();
+                 context.restore();
+             }
+        }
+
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (platelets.length > 0) {
+                platelets.forEach(p => p.draw(ctx));
+            } else {
+                ctx.save();
+                ctx.fillStyle = '#a0aec0';
+                ctx.textAlign = 'center';
+                ctx.font = "14px 'Press Start 2P'";
+                ctx.fillText("Set Density/Shear Dir & Press Start", canvas.width / 2, canvas.height / 2);
+                ctx.restore();
+            }
+            if (platelets.length > 0) {
+                 drawShearIndicator(ctx);
+            }
+        }
+
+        function simulationLoop() {
+            update();
+            draw();
+            if (isSimRunning) {
+                animationFrameId = requestAnimationFrame(simulationLoop);
+            }
+        }
+
+        // --- UI State Management ---
+        function setInitialUIState() {
+            isSimRunning = false;
+            startBtn.disabled = false;
+            densitySlider.disabled = false;
+            shearBtn.disabled = true;
+            rmfBtn.disabled = true;
+            stopBtn.disabled = true;
+            shearBtn.textContent = 'Apply Shear';
+            shearBtn.classList.remove('active');
+            rmfBtn.classList.remove('active');
+            rmfBtn.textContent = 'Apply RMF';
+            isShearActive = false;
+            isRmfActive = false;
+            wasShearApplied = false;
+            currentShearTargetRad = degToRad(90);
+            shearAngleDisplay.textContent = Math.round(radToDeg(currentShearTargetRad));
+            densityValueDisplay.textContent = densitySlider.value;
+            currentNumPlatelets = parseInt(densitySlider.value);
+
+            initPlatelets(); // Initialize/Re-initialize platelets
+            draw(); // Draw the initial state
+        }
+
+        function stopSimulation() {
+            if (!isSimRunning) return;
+            console.log("Simulation stopped.");
+            isSimRunning = false;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+            setInitialUIState(); // Reset UI and re-randomize platelets
+        }
+
+        function startSimulation() {
+            if (isSimRunning) return;
+            console.log("Starting simulation...");
+            isSimRunning = true;
+            wasShearApplied = false;
+            isShearActive = false;
+            isRmfActive = false;
+
+            startBtn.disabled = true;
+            densitySlider.disabled = true;
+            shearBtn.disabled = false;
+            rmfBtn.disabled = false;
+            stopBtn.disabled = false;
+            shearBtn.textContent = 'Apply Shear';
+            shearBtn.classList.remove('active');
+            rmfBtn.textContent = 'Apply RMF';
+            rmfBtn.classList.remove('active');
+
+            currentNumPlatelets = parseInt(densitySlider.value);
+            densityValueDisplay.textContent = currentNumPlatelets;
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            simulationLoop();
+        }
+
+
+        // --- Event Listeners ---
+        shearBtn.addEventListener('click', () => {
+            if (!isSimRunning) return;
+            isShearActive = !isShearActive;
+            shearBtn.classList.toggle('active', isShearActive);
+            shearBtn.textContent = isShearActive ? 'Stop Shear' : 'Apply Shear';
+            if (isShearActive) {
+                console.log(`Shear Applied towards ${Math.round(radToDeg(currentShearTargetRad))} deg`);
+                wasShearApplied = true;
+                 if(isRmfActive) {
+                     isRmfActive = false;
+                     rmfBtn.classList.remove('active');
+                     rmfBtn.textContent = 'Apply RMF';
+                     console.log("RMF stopped automatically by Shear.");
+                 }
+            } else {
+                console.log("Shear Stopped");
+            }
+        });
+
+        rmfBtn.addEventListener('click', () => {
+            if (!isSimRunning) return;
+            isRmfActive = !isRmfActive;
+            rmfBtn.classList.toggle('active', isRmfActive);
+            rmfBtn.textContent = isRmfActive ? 'Stop RMF' : 'Apply RMF';
+            if (isRmfActive) {
+                console.log("RMF Applied" + (wasShearApplied ? " (Synergy Active!)" : ""));
+                 if(isShearActive) {
+                     isShearActive = false;
+                     shearBtn.classList.remove('active');
+                     shearBtn.textContent = 'Apply Shear';
+                     console.log("Shear stopped automatically by RMF.");
+                 }
+            } else {
+                console.log("RMF Stopped");
+            }
+        });
+
+        stopBtn.addEventListener('click', stopSimulation);
+        startBtn.addEventListener('click', startSimulation);
+
+        densitySlider.addEventListener('input', () => {
+            densityValueDisplay.textContent = densitySlider.value;
+            if (!isSimRunning) {
+                 currentNumPlatelets = parseInt(densitySlider.value);
+                 initPlatelets();
+                 draw();
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (isShearActive) return;
+            const pos = getMousePos(canvas, e);
+            isDragging = true; dragStartX = pos.x; dragStartY = pos.y; dragCurrentX = pos.x; dragCurrentY = pos.y;
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging || isShearActive) return;
+            const pos = getMousePos(canvas, e);
+            dragCurrentX = pos.x; dragCurrentY = pos.y;
+            const dx = dragCurrentX - dragStartX; const dy = dragCurrentY - dragStartY;
+            if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                currentShearTargetRad = Math.atan2(dy, dx);
+                shearAngleDisplay.textContent = Math.round(radToDeg(currentShearTargetRad));
+                if (!isSimRunning) draw();
+            }
+        });
+        canvas.addEventListener('mouseup', (e) => {
+            if (!isDragging || isShearActive) return;
+            isDragging = false;
+            const dx = dragCurrentX - dragStartX; const dy = dragCurrentY - dragStartY;
+            if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                currentShearTargetRad = Math.atan2(dy, dx);
+                console.log(`Shear direction set to: ${Math.round(radToDeg(currentShearTargetRad))} deg`);
+                shearAngleDisplay.textContent = Math.round(radToDeg(currentShearTargetRad));
+            } else { console.log("Drag too short, shear direction not changed."); }
+             if (!isSimRunning) draw();
+        });
+         canvas.addEventListener('mouseleave', (e) => {
+             if (isDragging && !isShearActive) {
+                 isDragging = false;
+                 const dx = dragCurrentX - dragStartX; const dy = dragCurrentY - dragStartY;
+                 if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                    currentShearTargetRad = Math.atan2(dy, dx);
+                    console.log(`Shear direction set to: ${Math.round(radToDeg(currentShearTargetRad))} deg (mouseleave)`);
+                    shearAngleDisplay.textContent = Math.round(radToDeg(currentShearTargetRad));
+                 }
+                  if (!isSimRunning) draw();
+             }
+         });
+
+
+        // --- Initial Setup ---
+        canvas.width = CANVAS_WIDTH; canvas.height = CANVAS_HEIGHT;
+        setInitialUIState(); // Set up the initial screen state
+
+    </script>
+</body>
+</html>
