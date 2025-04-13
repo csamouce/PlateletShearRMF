@@ -93,13 +93,11 @@
              text-align: center; /* Center contents */
          }
          #reference {
-            /* Removed margin-top */
             font-size: 0.6rem;
             color: #718096;
-            text-align: center; /* Re-centered */
+            text-align: center;
             line-height: 1.4;
-            /* Removed flex-grow */
-            margin-bottom: 1rem; /* Add space below reference */
+            margin-bottom: 1rem;
          }
          #reference em {
             font-style: italic;
@@ -113,14 +111,21 @@
          #reference a:hover {
              color: #63b3ed;
          }
-         /* Style for UF Logo */
          #uf-logo {
-             height: 40px; /* Control logo size */
+             height: 40px;
              width: auto;
              display: block;
-             margin-left: auto; /* Center block element */
-             margin-right: auto; /* Center block element */
-             /* Removed flex-shrink */
+             margin-left: auto;
+             margin-right: auto;
+         }
+         /* Style for Credit Text */
+         #credit-text {
+             width: 100%;
+             max-width: 700px; /* Match footer content width */
+             margin: 1rem auto 0 auto; /* Top margin, auto left/right */
+             text-align: right;
+             font-size: 0.6rem;
+             color: #718096; /* Dim color */
          }
 
          @media (max-width: 640px) {
@@ -130,7 +135,7 @@
             #concentrationSlider { width: 120px; }
             #reference { font-size: 0.5rem; text-align: center;}
             #uf-logo { height: 30px; }
-            /* #footer-content justify-content no longer needed */
+            #credit-text { font-size: 0.5rem; text-align: center; margin-top: 1.5rem;}
          }
 
     </style>
@@ -165,8 +170,10 @@
             <p>Y. Chen, Z. Gao, S. A. Hoo, V. Tipnis, R. Wang, I. Mitevski, D. Hitchcock, K. L. Simmons, Y. Sun, M. Sarntinoranont, Y. Huang* (University of Florida, et al.)</p>
         </div>
         <img id="uf-logo"
-             src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/University_of_Florida_logo.svg/400px-University_of_Florida_logo.svg.png" alt="University of Florida Logo"
-             onerror="this.onerror=null; this.src='https://placehold.co/150x40/2d3748/a0aec0?text=Logo+Load+Error';"> </div>
+             src="cid:uploaded:university-of-florida.png-42d31087-bbcc-4502-9fa3-18001a5435ba" alt="University of Florida Logo"
+             onerror="this.onerror=null; this.src='https://placehold.co/150x40/2d3748/a0aec0?text=Logo+Error';"> </div>
+
+    <p id="credit-text">Made by Christopher Samouce</p>
 
 
     <script>
