@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Platelet Sequential Dual Alignment</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Press Start 2P', cursive;
+            font-family: 'Inter', sans-serif;
             background-color: #1a202c;
             color: #a0aec0;
             display: flex;
@@ -32,7 +34,7 @@
             touch-action: none;
         }
         .sim-button {
-            font-family: 'Press Start 2P', cursive;
+            font-family: 'Inter', sans-serif;
             background-color: #4299e1; /* Blue */
             color: white;
             padding: 0.75rem 1.5rem;
@@ -43,18 +45,20 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
             margin: 0.5rem;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.05em;
             min-width: 180px;
             text-align: center;
+            font-weight: 600;
+            font-size: 0.8rem;
         }
-        .sim-button.active { /* Style for active toggle buttons */
-             background-color: #dd6b20; /* Orange */
+        .sim-button.active {
+             background-color: #dd6b20;
         }
         .sim-button.active:hover {
-             background-color: #c05621; /* Darker Orange */
+             background-color: #c05621;
         }
         .sim-button:hover {
-            background-color: #3182ce; /* Darker blue */
+            background-color: #3182ce;
         }
         .sim-button:active {
             transform: scale(0.95);
@@ -72,7 +76,7 @@
              gap: 1rem;
              flex-wrap: wrap;
              justify-content: center;
-             font-size: 0.8rem;
+             font-size: 0.9rem;
              min-height: 2em;
         }
         #concentrationSlider {
@@ -83,17 +87,16 @@
              cursor: not-allowed;
              opacity: 0.5;
          }
-         /* Footer container no longer needs flex */
          #footer-content {
              max-width: 700px;
              width: 100%;
              margin-left: auto;
              margin-right: auto;
-             margin-top: 2rem; /* Add margin to the container */
-             text-align: center; /* Center contents */
+             margin-top: 2rem;
+             text-align: center;
          }
          #reference {
-            font-size: 0.6rem;
+            font-size: 0.75rem;
             color: #718096;
             text-align: center;
             line-height: 1.4;
@@ -118,31 +121,30 @@
              margin-left: auto;
              margin-right: auto;
          }
-         /* Style for Credit Text */
          #credit-text {
              width: 100%;
-             max-width: 700px; /* Match footer content width */
-             margin: 1rem auto 0 auto; /* Top margin, auto left/right */
+             max-width: 700px;
+             margin: 1rem auto 0 auto;
              text-align: right;
-             font-size: 0.6rem;
-             color: #718096; /* Dim color */
+             font-size: 0.75rem;
+             color: #718096;
          }
 
          @media (max-width: 640px) {
             .sim-button { padding: 0.5rem 1rem; font-size: 0.75rem; min-width: 140px;}
-            #concentration-control, #info-display { font-size: 0.7rem; gap: 0.5rem;}
-            h1 { font-size: 1.25rem; }
+            #concentration-control, #info-display { font-size: 0.8rem; gap: 0.5rem;}
+            h1 { font-size: 1.5rem; }
             #concentrationSlider { width: 120px; }
-            #reference { font-size: 0.5rem; text-align: center;}
+            #reference { font-size: 0.65rem; text-align: center;}
             #uf-logo { height: 30px; }
-            #credit-text { font-size: 0.5rem; text-align: center; margin-top: 1.5rem;}
+            #credit-text { font-size: 0.65rem; text-align: center; margin-top: 1.5rem;}
          }
 
     </style>
 </head>
 <body>
-    <h1 class="text-2xl font-bold mb-2 text-center text-blue-300">Platelet Sequential Dual Alignment</h1>
-    <p id="instruction-text" class="text-center text-sm mb-2">Set Shear Direction (click and drag in canvas below), Set Concentration, Press Start, Toggle Shear and RMF.</p>
+    <h1 class="text-2xl font-semibold mb-2 text-center text-blue-300">Platelet Sequential Dual Alignment</h1>
+    <p id="instruction-text" class="text-center text-sm mb-2">Set Concentration, Click/Touch & Drag on Canvas Below for Shear Direction, Start, then Toggle Shear & RMF.</p>
 
     <div style="position: relative; max-width: 600px; width: 100%;">
         <canvas id="simCanvas" width="600" height="400"></canvas>
@@ -171,7 +173,8 @@
         </div>
         <img id="uf-logo"
              src="university-of-florida.png" alt="University of Florida Logo"
-             onerror="this.onerror=null; this.src='https://placehold.co/150x40/2d3748/a0aec0?text=Logo+Error';"> </div>
+             onerror="this.onerror=null; this.src='https://placehold.co/150x40/2d3748/a0aec0?text=Logo+Error';">
+    </div>
 
     <p id="credit-text">Made by Christopher Samouce</p>
 
@@ -186,15 +189,16 @@
         const PLANAR_AXIS_TARGET_RAD_1 = 0;
         const PLANAR_AXIS_TARGET_RAD_2 = Math.PI;
         const EDGE_ON_FACE_TARGET_RAD = Math.PI / 2;
-        const ALIGNMENT_SPEED_BASE = 0.02;
-        const ALIGNMENT_SPEED_SYNERGY_BOOST = 3;
+        const ALIGNMENT_SPEED_BASE = 0.018;
+        // --- UPDATED Synergy Boost Factor ---
+        const ALIGNMENT_SPEED_SYNERGY_BOOST = 1.8; // Original was 3
         const TWO_PI = Math.PI * 2;
         const MAX_OFFSET_DEG = 5;
         const MAX_OFFSET_RAD = degToRad(MAX_OFFSET_DEG);
         const MIN_WT_PERCENT = 10;
         const MAX_WT_PERCENT = 50;
-        const MIN_PLATELET_COUNT = 10;
-        const MAX_PLATELET_COUNT = 80;
+        const MIN_PLATELET_COUNT = 20;
+        const MAX_PLATELET_COUNT = 100;
         const CANVAS_MARGIN = 5;
 
         // --- Sim Variables ---
@@ -273,6 +277,7 @@
                  let currentFaceSpeed = ALIGNMENT_SPEED_BASE;
                  let axisTarget = this.angleRad;
                  let faceTarget = this.faceAngleRad;
+                 // --- Synergy boost uses updated constant ---
                  const synergyBoost = wasShearApplied ? ALIGNMENT_SPEED_SYNERGY_BOOST : 1;
                  if (isShearActive) {
                      axisTarget = currentShearTargetRad;
@@ -287,8 +292,8 @@
                      const idealFaceTarget = EDGE_ON_FACE_TARGET_RAD;
                      faceTarget = idealFaceTarget + this.faceTargetOffsetRad;
                      faceTarget = Math.max(0, Math.min(Math.PI / 2, faceTarget));
-                     currentAxisSpeed = ALIGNMENT_SPEED_BASE * synergyBoost;
-                     currentFaceSpeed = ALIGNMENT_SPEED_BASE * synergyBoost;
+                     currentAxisSpeed = ALIGNMENT_SPEED_BASE * synergyBoost; // Apply boost
+                     currentFaceSpeed = ALIGNMENT_SPEED_BASE * synergyBoost; // Apply boost
                  }
                  this.angleRad = moveAngleTowards(this.angleRad, axisTarget, currentAxisSpeed);
                  this.faceAngleRad = moveAngleTowards(this.faceAngleRad, faceTarget, currentFaceSpeed);
@@ -357,53 +362,65 @@
             const indicatorX = 80;
             const indicatorY = 60;
             const textPadding = 4;
-            const textHeightEstimate = 10;
-            const textFont = "10px 'Press Start 2P'";
-            const valueFont = "11px 'Press Start 2P'";
+            const textHeightEstimate = 12;
+            const valueHeightEstimate = 13;
+            const textFont = "10px Inter, sans-serif";
+            const valueFont = "11px Inter, sans-serif";
             const valuePadding = 5;
+            const bgColor = '#2d3748';
+            const textColor = '#63b3ed';
 
-            // --- Draw Text Label with Background ---
+            // Draw Text Label with Background
             context.save();
             const textLabel = "Shear Direction";
             context.font = textFont;
             const labelMetrics = context.measureText(textLabel);
             const labelWidth = labelMetrics.width;
-            const rectWidth = labelWidth + textPadding * 2;
-            const rectHeight = textHeightEstimate + textPadding * 2;
-            const targetRectX = indicatorX - rectWidth / 2;
-            const targetRectY = indicatorY - indicatorLength / 2 - rectHeight - 5;
-            const rectX = Math.max(CANVAS_MARGIN, targetRectX);
-            const rectY = Math.max(CANVAS_MARGIN, targetRectY);
-            context.fillStyle = '#2d3748';
-            context.fillRect(rectX, rectY, rectWidth, rectHeight);
-            context.fillStyle = '#63b3ed';
+            const rectWidthLabel = labelWidth + textPadding * 2;
+            const rectHeightLabel = textHeightEstimate + textPadding * 2;
+            const targetRectXLabel = indicatorX - rectWidthLabel / 2;
+            const targetRectYLabel = indicatorY - indicatorLength / 2 - rectHeightLabel - 5;
+            const rectXLabel = Math.max(CANVAS_MARGIN, targetRectXLabel);
+            const rectYLabel = Math.max(CANVAS_MARGIN, targetRectYLabel);
+            context.fillStyle = bgColor;
+            context.fillRect(rectXLabel, rectYLabel, rectWidthLabel, rectHeightLabel);
+            context.fillStyle = textColor;
             context.textAlign = 'center';
             context.textBaseline = 'middle';
-            context.fillText(textLabel, indicatorX, rectY + rectHeight / 2);
+            context.fillText(textLabel, indicatorX, rectYLabel + rectHeightLabel / 2);
             context.restore();
 
-            // --- Draw Angle Value (to the left of arrow) ---
+            // Draw Angle Value with Background
             context.save();
             const angleDeg = Math.round(radToDeg(currentShearTargetRad));
             const angleValue = `${angleDeg}°`;
             context.font = valueFont;
-            context.fillStyle = '#63b3ed';
+            const valueMetrics = context.measureText(angleValue);
+            const valueWidth = valueMetrics.width;
+            const rectWidthValue = valueWidth + textPadding * 2;
+            const rectHeightValue = valueHeightEstimate + textPadding * 2;
+            const valueTextX = indicatorX - indicatorLength / 2 - valuePadding;
+            const valueTextY = indicatorY;
+            const targetRectXValue = valueTextX - valueWidth - textPadding;
+            const targetRectYValue = valueTextY - rectHeightValue / 2;
+            const rectXValue = Math.max(CANVAS_MARGIN, targetRectXValue);
+            const rectYValue = Math.max(CANVAS_MARGIN, targetRectYValue);
+            context.fillStyle = bgColor;
+            context.fillRect(rectXValue, rectYValue, rectWidthValue, rectHeightValue);
+            context.fillStyle = textColor;
             context.textAlign = 'right';
             context.textBaseline = 'middle';
-            const valueX = indicatorX - indicatorLength / 2 - valuePadding;
-            const valueY = indicatorY;
-            const valueMetrics = context.measureText(angleValue);
-            context.fillText(angleValue, Math.max(valueMetrics.width + CANVAS_MARGIN, valueX), valueY);
+            context.fillText(angleValue, valueTextX, valueTextY);
             context.restore();
 
-            // --- Draw Static Indicator Arrow ---
+            // Draw Static Indicator Arrow
             context.save();
             context.translate(indicatorX, indicatorY);
             context.rotate(currentShearTargetRad);
             context.beginPath();
             context.moveTo(-indicatorLength / 2, 0);
             context.lineTo(indicatorLength / 2, 0);
-            context.strokeStyle = '#63b3ed';
+            context.strokeStyle = textColor;
             context.lineWidth = 3;
             context.stroke();
             context.beginPath();
@@ -411,11 +428,11 @@
             context.lineTo(indicatorLength / 2 - arrowheadSize, -arrowheadSize * 0.6);
             context.lineTo(indicatorLength / 2 - arrowheadSize, arrowheadSize * 0.6);
             context.closePath();
-            context.fillStyle = '#63b3ed';
+            context.fillStyle = textColor;
             context.fill();
             context.restore();
 
-            // --- Draw Dragging Indicator Line ---
+            // Draw Dragging Indicator Line
             if (isDragging) {
                 context.save();
                 context.beginPath();
@@ -451,7 +468,7 @@
                 ctx.save();
                 ctx.fillStyle = '#a0aec0';
                 ctx.textAlign = 'center';
-                ctx.font = "14px 'Press Start 2P'";
+                ctx.font = "14px Inter, sans-serif";
                 ctx.fillText("Press Start to Begin Simulation", canvas.width / 2, canvas.height / 2);
                 ctx.restore();
                  drawShearIndicator(ctx);
